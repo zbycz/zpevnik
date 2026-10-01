@@ -45,15 +45,18 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
 
 ## How pages are served
 
-1. Vercel's CDN serves the generated `public/**` files first: `/`, `/styles.css`,
-   `/app.js`, `/songs.json`, `/song/<slug>` (via `cleanUrls`). No function call.
-2. Anything else hits `server.ts`: `/api/*` is handled there, and an unknown path
-   returns a plain 404 (no SPA shell, so a bad link is a real 404).
-3. A song added after the last deploy has no static page, so `/song/<slug>` falls
-   through to the function, which returns an **empty shell**. The client sees no
-   embedded `#song-data`, fetches `/api/get-song`, and renders. After the next
-   deploy the song has its own static page.
-4. `/add` is always the function's shell (the agent runs in the browser).
+1. `bun run build` writes the whole site into `public/`. The Vercel **Bun preset**
+   does not create a separate static output for this preset - it bundles `public/`
+   into the function through `functions["server.ts"].includeFiles`
+   (`"{public,pisnicky}/**"`), alongside the song sources.
+2. `server.ts` therefore serves the built files directly: `/` -> `public/index.html`,
+   `/song/:name` -> `public/song/<name>.html`, plus `/styles.css`, `/app.js`,
+   `/songs.json`. No API call happens when viewing a song.
+3. A song added after the last deploy has no built page, so `/song/<slug>` returns
+   an **empty shell**. The client sees no embedded `#song-data`, fetches
+   `/api/get-song`, and renders. After the next deploy the song has its own page.
+4. `/add` is the function's shell (the agent runs in the browser). Unknown paths
+   return a plain 404.
 
 ## Environment variables
 
@@ -71,13 +74,15 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
 - Do not import `.html`/`.css` as text in `server.ts`. Vercel bundles the entrypoint
   with rolldown, which cannot parse those imports ("HTML imports in `routes` are not
   supported on Vercel"). Read them with `readFileSync` at runtime instead.
-- `functions.<name>.includeFiles` must be a single glob string, not an array. It is
-  currently omitted: the function only reads `pisnicky/` as a fallback, and Vercel
-  includes the entrypoint's source files. If a song added after the last deploy must
-  be read from disk by the function, re-add
-  `"functions": { "server.ts": { "includeFiles": "pisnicky/**" } }`.
-- `cleanUrls: true` makes `/song/<slug>` serve `/song/<slug>.html` and adds redirects
-  from `/*.html`. Keep the client links extensionless to match.
+- The Vercel Bun preset has **no separate static builder**: `public/` is not served
+  as static CDN output. It must be bundled into the function via
+  `functions["server.ts"].includeFiles`, which is why that key exists:
+  `"includeFiles": "{public,pisnicky}/**"` (a single glob string, not an array).
+  Without it the built pages are not in the function's filesystem and every route
+  falls back to runtime rendering. A plain `robots.txt` in `public/` is *not*
+  served on Vercel for the same reason - only paths `server.ts` handles exist.
+- `cleanUrls: true` makes `/song/<slug>.html` redirect (308) to `/song/<slug>`.
+  The client links are already extensionless, so this only affects direct hits.
 - The agent runs in the browser and orchestrates `/api/llm`, `/api/search-lyrics`,
   `/api/search-web`, and `/api/fetch-webpage`; the final answer must be a JSON object
   which the UI turns into an editable draft before `POST /api/add-song`.

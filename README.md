@@ -2,8 +2,9 @@
 
 Jednoduchá aplikace bez závislostí, která běží na [Bun](https://bun.com) runtime
 na Vercelu. Úvodní stránka i jednotlivé písně se **generují jako statické HTML
-už při buildu** a Vercel je servíruje z CDN. Server (Bun) řeší jen API a stránku
-`/add`, takže běžné zobrazení písně vůbec nesahá na API.
+už při buildu** a Vercel je servíruje přímo z předgenerovaných souborů. Server
+(Bun) řeší jen API a stránku `/add`, takže běžné zobrazení písně vůbec nesahá
+na API.
 
 ## Co to umí
 
@@ -34,13 +35,14 @@ web/styles.css       responzivní styl, dark mode dle systému
 web/app.ts           klientský TypeScript (našeptávač, agent, fallback)
 scripts/seed-songs.ts ukázková data do pisnicky/
 public/              generováno buildem (v gitu ignorováno)
-vercel.json          bunVersion: 1.4.x, cleanUrls, buildCommand
+vercel.json          bunVersion: 1.4.x, cleanUrls, buildCommand, includeFiles
 ```
 
 `bun run build` vygeneruje `public/index.html`, `public/song/*.html`,
 `public/songs.json`, `public/styles.css` a zbundlovaný `public/app.js`.
-Vercel má `outputDirectory: public` (výchozí), takže je servíruje staticky;
-`cleanUrls` dělá hezké adresy bez `.html`.
+Vercel **Bun preset** tyhle soubory zabalí do funkce (`includeFiles`), takže
+stránky servíruje `server.ts` přímo z `public/` - žádné volání API při
+zobrazení. `cleanUrls` dělá hezké adresy bez `.html`.
 
 ## Proměnné prostředí (Vercel → Settings → Environment Variables)
 
@@ -70,4 +72,4 @@ Ukázková data: `GITHUB_PAT=... bun run scripts/seed-songs.ts`
 
 Vercel použije **Bun framework preset** (protože je v `vercel.json` `bunVersion`,
 existuje `bun.lock` a `server.ts`) a spustí `bun run build`. Vygenerovaný
-`public/` se nasadí jako statické soubory, `server.ts` jako funkce pro API.
+`public/` se přes `includeFiles` zabalí do funkce a `server.ts` ho servíruje.

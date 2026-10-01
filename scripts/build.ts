@@ -5,9 +5,9 @@ import { readWebFile, renderHomeHtml, renderSongHtml, webDir } from "../lib/rend
 
 /**
  * Build step (run by Vercel via `bun run build`): turns `pisnicky/*.md` and the
- * client sources in `web/` into a fully static site in `public/`. Vercel serves
- * `public/**` from its CDN; the Bun server only handles API calls and the
- * `/add` shell, so an unknown page 404s instead of being rendered dynamically.
+ * client sources in `web/` into a static site in `public/`. Vercel's Bun preset
+ * bundles `public/` into the function (`includeFiles`), so `server.ts` serves the
+ * pre-rendered pages directly instead of calling the API at view time.
  */
 const PUBLIC_DIR = join(webDir(), "..", "public");
 
@@ -17,7 +17,6 @@ mkdirSync(join(PUBLIC_DIR, "song"), { recursive: true });
 writeFileSync(join(PUBLIC_DIR, "index.html"), renderHomeHtml(listSongs()));
 writeFileSync(join(PUBLIC_DIR, "styles.css"), readWebFile("styles.css"));
 writeFileSync(join(PUBLIC_DIR, "songs.json"), JSON.stringify({ songs: listSongs() }));
-writeFileSync(join(PUBLIC_DIR, "robots.txt"), "User-agent: *\nAllow: /\n");
 
 const build = await Bun.build({
   entrypoints: [join(webDir(), "app.ts")],
