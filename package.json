@@ -1,0 +1,14 @@
+{
+  "name": "zpevnik",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot server.ts",
+    "start": "bun run server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^5.9.2"
+  }
+}
