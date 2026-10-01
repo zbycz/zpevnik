@@ -17,8 +17,9 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
 
 ## Architecture
 
-- `server.ts` - all routes. API handlers plus the SPA shell. Client TS is served at
-  `/app.js` via `Bun.Transpiler` (transpiled once at startup), HTML/CSS via text imports.
+- `server.ts` - all routes. API handlers plus the SPA shell. Client assets are read
+  from `public/` at runtime (`lib/assets.ts`); the client TS is transpiled once at
+  startup with `Bun.Transpiler` and served at `/app.js`.
 - `lib/github.ts` - GitHub REST (tree, contents read, contents write). `GITHUB_API_URL`
   can override the API base (used for local mocking / GH Enterprise).
 - `lib/markdown.ts` - frontmatter via `Bun.YAML`, rendering via `Bun.markdown`.
@@ -37,6 +38,10 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
 - Do not remove `bun.lock`; the Vercel Bun preset requires it. `bun install` deletes an
   empty lockfile, so `package.json` intentionally has dev-only deps (`@types/bun`,
   `typescript`) to keep the lockfile non-empty.
+- Do not import `.html`/`.css` as text in `server.ts`. Vercel bundles the entrypoint
+  with rolldown, which cannot parse those imports ("HTML imports in `routes` are not
+  supported on Vercel"). `public/**` is shipped through `includeFiles` in `vercel.json`
+  and read at runtime instead.
 - The agent runs in the browser and orchestrates `/api/llm` + `/api/fetch-webpage`; the
   final answer must be a JSON object which the UI turns into an editable draft before
   `POST /api/add-song`.

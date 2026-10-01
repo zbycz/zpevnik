@@ -1,13 +1,4 @@
-// @ts-ignore Bun supports importing files as text (no build step needed).
-import indexHtmlRaw from "./public/index.html" with { type: "text" };
-// @ts-ignore
-import stylesCss from "./public/styles.css" with { type: "text" };
-// @ts-ignore
-import appTs from "./public/app.ts" with { type: "text" };
-
-// Bun's types model `.html` imports as HTMLBundle, but `type: "text"` yields a string.
-const indexHtml = indexHtmlRaw as unknown as string;
-
+import { clientJs, indexHtml, stylesCss } from "./lib/assets";
 import { SONGS_DIR, createFile, getFile, getRepoTree } from "./lib/github";
 import { parseFrontmatter, renderMarkdown } from "./lib/markdown";
 import type { Song, SongListItem } from "./lib/types";
@@ -16,9 +7,6 @@ const OPENROUTER_URL = process.env.OPENROUTER_URL ?? "https://openrouter.ai/api/
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2.6-pro";
 const OPENROUTER_KEY =
   process.env.OPENROUTER_API_KEY ?? process.env.OPENROUTER_KEY ?? "";
-
-/** Browser TypeScript, transpiled once at startup. */
-const clientJs = new Bun.Transpiler({ loader: "ts" }).transformSync(appTs);
 
 const TEXT = { "Content-Type": "text/plain; charset=utf-8" };
 const html = (body: string) =>
