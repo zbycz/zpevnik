@@ -28,7 +28,12 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
   fallback for pages that block datacenter IPs.
 - `public/app.ts` - browser code: router, song view, search autosuggest, and the
   in-browser agent harness for `/add`.
+- `lib/songs.ts` - reads songs from the local `pisnicky/` directory (shipped with the
+  deployment via `includeFiles`). The list/detail/search are served from disk, so they
+  are instant and don't touch the GitHub API.
 - Songs live in `pisnicky/` on the default branch. Frontmatter: `title`, `author`, `year`.
+  The GitHub API is used only to read a song that is not on disk yet (added after the
+  last deploy) and to write new songs.
 
 ## Environment variables
 
@@ -43,8 +48,11 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
   `typescript`) to keep the lockfile non-empty.
 - Do not import `.html`/`.css` as text in `server.ts`. Vercel bundles the entrypoint
   with rolldown, which cannot parse those imports ("HTML imports in `routes` are not
-  supported on Vercel"). `public/**` is shipped through `includeFiles` in `vercel.json`
-  and read at runtime instead.
+  supported on Vercel"). `public/**` and `pisnicky/**` are shipped through `includeFiles`
+  in `vercel.json` and read at runtime instead.
+- `functions.<name>.includeFiles` must be a single glob string, not an array. The list
+  and detail read from the bundled `pisnicky/` directory; the GitHub API is only a
+  fallback for songs added after the last deploy.
 - The agent runs in the browser and orchestrates `/api/llm`, `/api/search-lyrics`,
   `/api/search-web`, and `/api/fetch-webpage`; the final answer must be a JSON object
   which the UI turns into an editable draft before `POST /api/add-song`.

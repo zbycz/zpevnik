@@ -3,7 +3,7 @@
   "bunVersion": "1.4.x",
   "functions": {
     "server.ts": {
-      "includeFiles": "public/**"
+      "includeFiles": "{public,pisnicky}/**"
     }
   }
 }

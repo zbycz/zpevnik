@@ -1,8 +1,8 @@
 import { clientJs, indexHtml, stylesCss } from "./lib/assets";
-import { SONGS_DIR, createFile, getFile, getRepoTree } from "./lib/github";
+import { SONGS_DIR, createFile, getFile } from "./lib/github";
 import { parseFrontmatter, renderMarkdown } from "./lib/markdown";
+import { getLocalSong, listSongs, titleFromName } from "./lib/songs";
 import { fetchWebpage, searchLyrics, searchWeb } from "./lib/web";
-import type { Song, SongListItem } from "./lib/types";
 
 const OPENROUTER_URL = process.env.OPENROUTER_URL ?? "https://openrouter.ai/api/v1";
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2.6-pro";
@@ -20,82 +20,12 @@ const json = (data: unknown, status = 200) => Response.json(data, { status });
 const fail = (message: string, status = 500) => json({ error: message }, status);
 
 // ---------------------------------------------------------------------------
-// Song catalog
-// ---------------------------------------------------------------------------
-
-interface CatalogEntry extends SongListItem {
-  path: string;
-}
-
-let catalog: { at: number; data: CatalogEntry[] } | null = null;
-const CATALOG_TTL = 60_000;
-
-/** Map with a bounded number of concurrent tasks. */
-async function mapLimit<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  async function worker() {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await fn(items[index]);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
-}
-
-function titleFromName(name: string): string {
-  return name
-    .replace(/\.(md|markdown)$/i, "")
-    .replace(/[-_]+/g, " ")
-    .trim();
-}
-
-/** List songs with metadata (title/author from frontmatter), cached briefly. */
-async function getCatalog(): Promise<CatalogEntry[]> {
-  if (catalog && Date.now() - catalog.at < CATALOG_TTL) return catalog.data;
-
-  const { entries } = await getRepoTree();
-  const prefix = `${SONGS_DIR}/`;
-  const files = entries.filter(
-    (e) =>
-      e.type === "blob" &&
-      e.path.startsWith(prefix) &&
-      !e.path.slice(prefix.length).includes("/") &&
-      /\.(md|markdown)$/i.test(e.path),
-  );
-
-  const data = await mapLimit(files, 8, async (entry): Promise<CatalogEntry> => {
-    const name = entry.path.slice(prefix.length);
-    try {
-      const file = await getFile(entry.path);
-      const { meta } = parseFrontmatter(file.content);
-      return { name, path: entry.path, title: meta.title || titleFromName(name), author: meta.author };
-    } catch {
-      return { name, path: entry.path, title: titleFromName(name), author: "" };
-    }
-  });
-
-  data.sort((a, b) => a.title.localeCompare(b.title, "cs"));
-  catalog = { at: Date.now(), data };
-  return data;
-}
-
-function publicList(entries: CatalogEntry[]): SongListItem[] {
-  return entries.map(({ name, title, author }) => ({ name, title, author }));
-}
-
-// ---------------------------------------------------------------------------
 // API handlers
 // ---------------------------------------------------------------------------
 
 async function apiGetSongs(): Promise<Response> {
   try {
-    return json({ songs: publicList(await getCatalog()) });
+    return json({ songs: listSongs() });
   } catch (error) {
     return fail(message(error));
   }
@@ -107,20 +37,23 @@ async function apiGetSong(request: Request): Promise<Response> {
     if (!name || name.includes("/") || name.includes("..")) {
       return fail("Neplatný název souboru.", 400);
     }
-    const file = await getFile(`${SONGS_DIR}/${name}`);
-    const { meta, body } = parseFrontmatter(file.content);
-    const song: Song = {
-      name,
-      meta: { ...meta, title: meta.title || titleFromName(name) },
-      markdown: body,
-      html: renderMarkdown(body),
-    };
+
+    // Songs ship with the deployment, so this is instant. A song committed
+    // after the last deploy is not on disk yet - fall back to the GitHub API.
+    let song = getLocalSong(name);
+    if (!song) {
+      const file = await getFile(`${SONGS_DIR}/${name}`);
+      const { meta, body } = parseFrontmatter(file.content);
+      song = {
+        name,
+        meta: { ...meta, title: meta.title || titleFromName(name) },
+        markdown: body,
+        html: renderMarkdown(body),
+      };
+    }
+
     const sameAuthor = song.meta.author
-      ? publicList(
-          (await getCatalog()).filter(
-            (s) => s.author === song.meta.author && s.name !== name,
-          ),
-        )
+      ? listSongs().filter((s) => s.author === song.meta.author && s.name !== name)
       : [];
     return json({ song, sameAuthor });
   } catch (error) {
@@ -183,7 +116,6 @@ async function apiAddSong(request: Request): Promise<Response> {
           content,
           `Přidat píseň: ${title}`,
         );
-        catalog = null;
         return json({ name, sha, title });
       } catch (error) {
         if (!/ 422| 409/.test(message(error))) throw error;

@@ -37,35 +37,6 @@ function headers(token = githubToken()): Record<string, string> {
   };
 }
 
-export interface TreeEntry {
-  path: string;
-  type: "blob" | "tree" | "commit";
-}
-
-export interface RepoTree {
-  entries: TreeEntry[];
-  truncated: boolean;
-}
-
-/** Return the whole repository tree for a branch (default: the repo default branch). */
-export async function getRepoTree(branch?: string): Promise<RepoTree> {
-  const ref = branch ?? (await getDefaultBranch());
-  const res = await fetch(
-    `${API}/repos/${OWNER}/${REPO}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
-    { headers: headers() },
-  );
-  if (!res.ok) throw new Error(`GitHub tree ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { tree: TreeEntry[]; truncated: boolean };
-  return { entries: data.tree ?? [], truncated: Boolean(data.truncated) };
-}
-
-export async function getDefaultBranch(): Promise<string> {
-  const res = await fetch(`${API}/repos/${OWNER}/${REPO}`, { headers: headers() });
-  if (!res.ok) throw new Error(`GitHub repo ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { default_branch: string };
-  return data.default_branch;
-}
-
 export interface RepoFile {
   /** Raw file content (decoded from base64). */
   content: string;
