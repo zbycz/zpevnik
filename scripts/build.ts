@@ -17,6 +17,7 @@ mkdirSync(join(PUBLIC_DIR, "song"), { recursive: true });
 writeFileSync(join(PUBLIC_DIR, "index.html"), renderHomeHtml(listSongs()));
 writeFileSync(join(PUBLIC_DIR, "styles.css"), readWebFile("styles.css"));
 writeFileSync(join(PUBLIC_DIR, "songs.json"), JSON.stringify({ songs: listSongs() }));
+writeFileSync(join(PUBLIC_DIR, "robots.txt"), "User-agent: *\nAllow: /\n");
 
 const build = await Bun.build({
   entrypoints: [join(webDir(), "app.ts")],
