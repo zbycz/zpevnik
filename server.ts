@@ -18,12 +18,19 @@ const OPENROUTER_KEY =
   process.env.OPENROUTER_API_KEY ?? process.env.OPENROUTER_KEY ?? "";
 
 const TEXT = { "Content-Type": "text/plain; charset=utf-8" };
+const MARKER = { "x-zpevnik": "function" };
 const html = (body: string) =>
-  new Response(body, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+  new Response(body, {
+    headers: { "Content-Type": "text/html; charset=utf-8", ...MARKER },
+  });
 const css = (body: string) =>
-  new Response(body, { headers: { "Content-Type": "text/css; charset=utf-8" } });
+  new Response(body, {
+    headers: { "Content-Type": "text/css; charset=utf-8", ...MARKER },
+  });
 const js = (body: string) =>
-  new Response(body, { headers: { "Content-Type": "text/javascript; charset=utf-8" } });
+  new Response(body, {
+    headers: { "Content-Type": "text/javascript; charset=utf-8", ...MARKER },
+  });
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const fail = (message: string, status = 500) => json({ error: message }, status);
 
