@@ -237,8 +237,12 @@ const server = Bun.serve({
     "/api/search-web": { POST: (request) => apiSearchWeb(request) },
     "/api/search-lyrics": { POST: (request) => apiSearchLyrics(request) },
 
-    // Client-side routes (SPA): everything else renders the shell.
-    "/*": () => html(renderShellHtml()),
+    // Unknown paths: nothing static and no API - a plain 404, no shell.
+    "/*": () =>
+      new Response("<!doctype html><meta charset=utf-8><title>404</title><h1>404 – stránka nenalezena</h1><p><a href=\"/\">Zpět na zpěvník</a></p>", {
+        status: 404,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }),
   },
   fetch() {
     return new Response("Not found", { status: 404, headers: TEXT });

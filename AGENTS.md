@@ -47,7 +47,8 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
 
 1. Vercel's CDN serves the generated `public/**` files first: `/`, `/styles.css`,
    `/app.js`, `/songs.json`, `/song/<slug>` (via `cleanUrls`). No function call.
-2. Anything else hits `server.ts`. `/api/*` is handled there.
+2. Anything else hits `server.ts`: `/api/*` is handled there, and an unknown path
+   returns a plain 404 (no SPA shell, so a bad link is a real 404).
 3. A song added after the last deploy has no static page, so `/song/<slug>` falls
    through to the function, which returns an **empty shell**. The client sees no
    embedded `#song-data`, fetches `/api/get-song`, and renders. After the next
