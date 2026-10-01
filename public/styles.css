@@ -254,6 +254,15 @@ textarea {
 
 .log-line {
   padding: 0.12rem 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-think {
+  color: var(--muted);
+  font-style: italic;
+  border-left: 2px solid var(--border);
+  padding-left: 0.6rem;
 }
 
 .log-tool {
@@ -273,5 +282,14 @@ textarea {
 @media (max-width: 520px) {
   .brand span {
     display: none;
+  }
+
+  /* Full-bleed song box: cancel main's side padding, drop side borders. */
+  .song-body {
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
   }
 }

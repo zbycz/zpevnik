@@ -22,6 +22,8 @@ interface ChatMessage {
   content: string | null;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
+  reasoning?: string | null;
+  reasoning_details?: { text?: string }[];
 }
 
 interface ToolCall {
@@ -83,6 +85,19 @@ function h(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Pretty-print JSON answers (and fenced JSON) so the log is readable. */
+function prettyContent(content: string): string {
+  const trimmed = content.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(trimmed);
+  const candidate = fenced ? fenced[1] : trimmed;
+  if (!candidate.startsWith("{")) return content;
+  try {
+    return JSON.stringify(JSON.parse(candidate), null, 2);
+  } catch {
+    return content;
+  }
 }
 
 async function readError(response: Response): Promise<string> {
@@ -324,6 +339,8 @@ const SYSTEM_PROMPT = [
   "Postup: nejdřív search_lyrics s názvem písně a autorem; pokud nenajdeš, použij search_web",
   "a pak fetch_webpage na vhodný odkaz. Můžeš volat nástroje vícekrát.",
   "Najdi text písně a jejího autora. Pokud text nenajdeš, vrať prázdný markdown a vysvětli proč.",
+  "Do markdownu dej POUZE text písně - bez nadpisu s názvem a bez řádku s autorem,",
+  "ty už jsou zvlášť v polích title a author.",
   "Až budeš hotový, odpověz POUZE jedním JSON objektem bez okolního textu a bez code fence,",
   've tvaru: {"title": "Název písně", "author": "Autor", "year": "rok nebo prázdný řetězec",',
   '"markdown": "text písně v markdownu"}.',
@@ -335,15 +352,47 @@ function parseDraft(content: string): SongDraft {
   if (!match) return { ...fallback, markdown: content.trim() };
   try {
     const data = JSON.parse(match[0]) as Partial<SongDraft>;
+    const title = String(data.title ?? "").trim();
+    const author = String(data.author ?? "").trim();
     return {
-      title: String(data.title ?? "").trim(),
-      author: String(data.author ?? "").trim(),
+      title,
+      author,
       year: String(data.year ?? "").trim(),
-      markdown: String(data.markdown ?? "").trim(),
+      markdown: stripHeadings(String(data.markdown ?? "").trim(), title, author),
     };
   } catch {
     return { ...fallback, markdown: content.trim() };
   }
+}
+
+/**
+ * Remove a leading "# Title" heading and "**Author** (album: …)" line from the
+ * body - the title/author/year live in the frontmatter, not in the lyrics text.
+ */
+function stripHeadings(markdown: string, title: string, author: string): string {
+  const lines = markdown.split("\n");
+  const dropBlank = () => {
+    while (lines.length && !lines[0].trim()) lines.shift();
+  };
+
+  dropBlank();
+  const heading = /^#\s+(.+)$/.exec(lines[0]?.trim() ?? "");
+  if (heading && (!title || normalize(heading[1]) === normalize(title))) {
+    lines.shift();
+    dropBlank();
+  }
+
+  const bold = /^\*\*([^*]+)\*\*\s*(.*)$/.exec(lines[0]?.trim() ?? "");
+  if (bold) {
+    const name = bold[1].trim();
+    const rest = bold[2].trim();
+    const restIsMeta = rest === "" || /^[*_(].*[*_)]$/.test(rest);
+    if (restIsMeta && (!author || normalize(name) === normalize(author))) {
+      lines.shift();
+      dropBlank();
+    }
+  }
+  return lines.join("\n").trim();
 }
 
 function renderAdd(url: URL): void {
@@ -420,8 +469,13 @@ async function runAgent(query: string, ui: AgentUi): Promise<void> {
       if (message.tool_calls) assistant.tool_calls = message.tool_calls;
       messages.push(assistant);
 
-      if (message.content) logLine(ui.log, message.content);
-      else logLine(ui.log, "(model nepíše text)");
+      const reasoning = (message.reasoning ?? "")
+        || (message.reasoning_details ?? []).map((d) => d.text ?? "").join("\n");
+      if (reasoning.trim()) {
+        logLine(ui.log, `💭 ${reasoning.trim()}`, "log-think");
+      }
+      if (message.content) logLine(ui.log, prettyContent(message.content));
+      else if (!reasoning.trim()) logLine(ui.log, "(model nepíše text)");
 
       const toolCalls = message.tool_calls ?? [];
       if (toolCalls.length === 0) {
