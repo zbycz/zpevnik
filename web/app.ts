@@ -117,50 +117,55 @@ let songsCache: { at: number; data: SongListItem[] } | null = null;
 
 async function getSongs(force = false): Promise<SongListItem[]> {
   if (!force && songsCache && Date.now() - songsCache.at < 60_000) return songsCache.data;
-  const response = await fetch("/api/get-songs");
+  // Generated at build time and served statically (no API call).
+  const response = await fetch("/songs.json");
   if (!response.ok) throw new Error(await readError(response));
   const data = (await response.json()) as { songs: SongListItem[] };
   songsCache = { at: Date.now(), data: data.songs ?? [] };
   return songsCache.data;
 }
 
-async function getSong(
-  name: string,
-): Promise<{ song: Song; sameAuthor: SongListItem[] }> {
+interface SongData {
+  song: Song;
+  sameAuthor: SongListItem[];
+}
+
+/** Read the data embedded in a static song page, if present. */
+function embeddedSong(): SongData | null {
+  const el = document.getElementById("song-data");
+  if (!el?.textContent) return null;
+  try {
+    return JSON.parse(el.textContent) as SongData;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A song's static page carries its data inline. A song added after the last
+ * deploy has no static page yet, so the API is used as a fallback.
+ */
+async function getSongFromApi(name: string): Promise<SongData> {
   const response = await fetch(`/api/get-song?name=${encodeURIComponent(name)}`);
   if (!response.ok) throw new Error(await readError(response));
-  return (await response.json()) as { song: Song; sameAuthor: SongListItem[] };
+  return (await response.json()) as SongData;
 }
 
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
-function navigate(path: string): void {
-  if (path === location.pathname + location.search) return render(path);
-  history.pushState({}, "", path);
-  render(path);
-}
-
-function render(path = location.pathname + location.search): void {
+/**
+ * Pages are rendered statically at build time. The client only needs to act on
+ * `/add` (the agent) and on a song page that has no static HTML yet (served as
+ * an empty shell by the function) - then it renders from the API.
+ */
+function render(): void {
   closeSuggest();
-  window.scrollTo({ top: 0 });
-  const url = new URL(path, location.origin);
-  if (url.pathname.startsWith("/song")) renderSong(url);
-  else if (url.pathname.startsWith("/add")) renderAdd(url);
-  else renderHome();
+  const url = new URL(location.href);
+  if (url.pathname.startsWith("/add")) renderAdd(url);
+  else if (url.pathname.startsWith("/song")) renderSong(url);
 }
-
-document.addEventListener("click", (event) => {
-  const target = (event.target as HTMLElement).closest("a");
-  if (!target) return;
-  const href = target.getAttribute("href");
-  if (!href || target.target || href.startsWith("http") || href.startsWith("#")) return;
-  event.preventDefault();
-  navigate(href);
-});
-
-window.addEventListener("popstate", () => render());
 
 // ---------------------------------------------------------------------------
 // Views
@@ -172,35 +177,32 @@ function showError(container: HTMLElement, error: unknown, retry?: () => void): 
   container.replaceChildren(box);
 }
 
+function songHref(name: string): string {
+  return `/song/${encodeURIComponent(name.replace(/\.(md|markdown)$/i, ""))}`;
+}
+
 function songListHtml(songs: SongListItem[]): string {
   return songs
     .map(
       (song) =>
-        `<li><a href="/song/${encodeURIComponent(song.name)}">${escapeHtml(song.title)}${
+        `<li><a href="${songHref(song.name)}">${escapeHtml(song.title)}${
           song.author ? `<span class="by">${escapeHtml(song.author)}</span>` : ""
         }</a></li>`,
     )
     .join("");
 }
 
-function renderHome(): void {
-  app.replaceChildren(h("p", { class: "muted", text: "Načítám písně…" }));
-  getSongs()
-    .then((songs) => {
-      const list = songs.length
-        ? `<ul class="song-list">${songListHtml(songs)}</ul>`
-        : `<p class="muted">Zatím tu nejsou žádné písně. Přidej první pomocí vyhledávání.</p>`;
-      app.innerHTML = `<h1>Zpěvník</h1><p class="muted">${songs.length} písní</p>${list}`;
-    })
-    .catch((error) => showError(app, error, () => renderHome()));
-}
-
 function renderSong(url: URL): void {
-  // searchParams is already decoded; the path segment is not.
-  const raw = url.searchParams.get("name") ?? url.pathname.split("/song/")[1] ?? "";
-  const name = raw.includes("%") ? decodeURIComponent(raw) : raw;
+  // Static song pages carry their data inline, so the page is already correct.
+  if (embeddedSong()) return;
+
+  // No static page (a song added after the last deploy): render from the API.
+  let name = url.searchParams.get("name") ?? url.pathname.split("/song/")[1] ?? "";
+  name = name.includes("%") ? decodeURIComponent(name) : name;
+  name = name.replace(/\.html$/i, "");
+  if (name && !/\.(md|markdown)$/i.test(name)) name += ".md";
   app.replaceChildren(h("p", { class: "muted", text: "Načítám píseň…" }));
-  getSong(name)
+  getSongFromApi(name)
     .then(({ song, sameAuthor }) => {
       const metaParts = [song.meta.author, song.meta.year].filter(Boolean).map(escapeHtml);
       const sameHtml = sameAuthor.length
@@ -247,7 +249,7 @@ async function updateSuggest(value: string): Promise<void> {
   suggestBox.innerHTML = [
     ...matches.map(
       (song) =>
-        `<a role="option" href="/song/${encodeURIComponent(song.name)}">${escapeHtml(song.title)}${
+        `<a role="option" data-song href="${songHref(song.name)}">${escapeHtml(song.title)}${
           song.author ? ` <span class="muted">· ${escapeHtml(song.author)}</span>` : ""
         }</a>`,
     ),
@@ -273,7 +275,7 @@ searchInput.addEventListener("keydown", (event) => {
   const query = searchInput.value.trim();
   if (!query) return;
   const first = suggestBox.querySelector<HTMLAnchorElement>("a[data-song]");
-  navigate(first?.getAttribute("href") ?? `/add?query=${encodeURIComponent(query)}`);
+  location.href = first?.getAttribute("href") ?? `/add?query=${encodeURIComponent(query)}`;
 });
 document.addEventListener("click", (event) => {
   if (event.target === searchInput || suggestBox.contains(event.target as Node)) return;
@@ -582,10 +584,12 @@ function showDraftForm(draft: SongDraft, container: HTMLElement): void {
       if (!response.ok) throw new Error(await readError(response));
       const data = (await response.json()) as { name: string; title: string };
       songsCache = null;
+      const path = songHref(data.name);
       container.replaceChildren(
         h("div", { class: "card ok" },
           h("strong", { text: "Píseň přidána. " }),
-          h("a", { href: `/song/${encodeURIComponent(data.name)}` }, "Zobrazit píseň →"),
+          h("a", { href: path }, "Zobrazit píseň →"),
+          h("p", { class: "muted", text: "Zobrazí se hned (živě z API), na statickou stránku se dostane po dalším nasazení." }),
         ),
       );
     } catch (error) {

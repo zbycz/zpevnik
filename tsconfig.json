@@ -11,5 +11,5 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["server.ts", "lib", "public", "scripts"]
+  "include": ["server.ts", "lib", "web", "scripts"]
 }

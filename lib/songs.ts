@@ -32,6 +32,11 @@ export function titleFromName(name: string): string {
     .trim();
 }
 
+/** File-name slug used for a song's static page (no `.md` extension). */
+export function songSlug(name: string): string {
+  return name.replace(/\.(md|markdown)$/i, "");
+}
+
 function isSongFile(name: string): boolean {
   return /\.(md|markdown)$/i.test(name);
 }

@@ -1,4 +1,12 @@
-import { clientJs, indexHtml, stylesCss } from "./lib/assets";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  clientJs,
+  publicDir,
+  renderHomeHtml,
+  renderShellHtml,
+  stylesCss,
+} from "./lib/render";
 import { SONGS_DIR, createFile, getFile } from "./lib/github";
 import { parseFrontmatter, renderMarkdown } from "./lib/markdown";
 import { getLocalSong, listSongs, titleFromName } from "./lib/songs";
@@ -18,6 +26,12 @@ const js = (body: string) =>
   new Response(body, { headers: { "Content-Type": "text/javascript; charset=utf-8" } });
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const fail = (message: string, status = 500) => json({ error: message }, status);
+
+/** Read a generated file from `public/` (present after a build); null if missing. */
+function builtFile(rel: string): string | null {
+  const path = join(publicDir(), rel);
+  return existsSync(path) ? readFileSync(path, "utf8") : null;
+}
 
 // ---------------------------------------------------------------------------
 // API handlers
@@ -202,9 +216,17 @@ function message(error: unknown): string {
 
 const server = Bun.serve({
   routes: {
-    "/": () => html(indexHtml),
-    "/styles.css": () => css(stylesCss),
-    "/app.js": () => js(clientJs),
+    // On Vercel the CDN serves the generated `public/**` files first, so these
+    // content routes only run locally (before/without a build) and as a shell
+    // for pages that are not deployed yet.
+    "/": () => html(builtFile("index.html") ?? renderHomeHtml(listSongs())),
+    "/add": () => html(renderShellHtml()),
+    "/song/:name": () => html(renderShellHtml()),
+    "/styles.css": () => css(builtFile("styles.css") ?? stylesCss()),
+    "/app.js": () => js(builtFile("app.js") ?? clientJs()),
+    "/songs.json": () => new Response(builtFile("songs.json") ?? JSON.stringify({ songs: listSongs() }), {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    }),
     "/favicon.ico": () => new Response(null, { status: 204 }),
 
     "/api/get-songs": { GET: () => apiGetSongs() },
@@ -216,7 +238,7 @@ const server = Bun.serve({
     "/api/search-lyrics": { POST: (request) => apiSearchLyrics(request) },
 
     // Client-side routes (SPA): everything else renders the shell.
-    "/*": () => html(indexHtml),
+    "/*": () => html(renderShellHtml()),
   },
   fetch() {
     return new Response("Not found", { status: 404, headers: TEXT });

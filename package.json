@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --hot server.ts",
+    "build": "bun run scripts/build.ts",
+    "dev": "bun run scripts/build.ts && bun run --hot server.ts",
     "start": "bun run server.ts",
     "typecheck": "tsc --noEmit"
   },
