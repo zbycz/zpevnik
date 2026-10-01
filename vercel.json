@@ -1,5 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "bunVersion": "1.4.x",
-  "includeFiles": "public/**"
+  "functions": {
+    "server.ts": {
+      "includeFiles": "public/**"
+    }
+  }
 }
