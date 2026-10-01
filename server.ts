@@ -1,6 +1,7 @@
 import { clientJs, indexHtml, stylesCss } from "./lib/assets";
 import { SONGS_DIR, createFile, getFile, getRepoTree } from "./lib/github";
 import { parseFrontmatter, renderMarkdown } from "./lib/markdown";
+import { fetchWebpage, searchLyrics, searchWeb } from "./lib/web";
 import type { Song, SongListItem } from "./lib/types";
 
 const OPENROUTER_URL = process.env.OPENROUTER_URL ?? "https://openrouter.ai/api/v1";
@@ -231,71 +232,32 @@ async function apiFetchWebpage(request: Request): Promise<Response> {
   try {
     const { url } = (await request.json()) as { url?: string };
     if (!url) return fail("Chybí url.", 400);
-    let target: URL;
-    try {
-      target = new URL(url);
-    } catch {
-      return fail("Neplatná URL.", 400);
-    }
-    if (target.protocol !== "http:" && target.protocol !== "https:") {
-      return fail("Povoleny jsou jen adresy http/https.", 400);
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15_000);
-    let res: Response;
-    try {
-      res = await fetch(target.href, {
-        signal: controller.signal,
-        redirect: "follow",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (compatible; ZpevnikBot/1.0; +https://github.com/zbycz/zpevnik)",
-          Accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5",
-        },
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-    if (!res.ok) return fail(`Stránku nelze načíst (HTTP ${res.status}).`, 502);
-
-    const raw = await res.text();
-    const title = extractTitle(raw) || target.href;
-    const text = htmlToText(raw).slice(0, 20_000);
-    return json({ url: res.url || target.href, title, text });
+    return json(await fetchWebpage(url));
   } catch (error) {
     return fail(message(error), 502);
   }
 }
 
-function extractTitle(htmlText: string): string {
-  const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(htmlText);
-  return match ? decodeEntities(match[1]).replace(/\s+/g, " ").trim() : "";
+async function apiSearchWeb(request: Request): Promise<Response> {
+  try {
+    const { query } = (await request.json()) as { query?: string };
+    const q = (query ?? "").trim();
+    if (!q) return fail("Chybí dotaz.", 400);
+    return json(await searchWeb(q));
+  } catch (error) {
+    return fail(message(error), 502);
+  }
 }
 
-function htmlToText(htmlText: string): string {
-  return decodeEntities(
-    htmlText
-      .replace(/<!--[\s\S]*?-->/g, " ")
-      .replace(/<(script|style|noscript|template|svg|head)[^>]*>[\s\S]*?<\/\1>/gi, " ")
-      .replace(/<(br|\/p|\/div|\/li|\/h[1-6]|\/tr)[^>]*>/gi, "\n")
-      .replace(/<[^>]+>/g, " "),
-  )
-    .replace(/[ \t\u00a0]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function decodeEntities(text: string): string {
-  const named: Record<string, string> = {
-    amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", hellip: "…",
-    mdash: "—", ndash: "–", laquo: "«", raquo: "»", copy: "©", reg: "®",
-  };
-  return text
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-    .replace(/&([a-z]+);/gi, (m, name) => named[name.toLowerCase()] ?? m);
+async function apiSearchLyrics(request: Request): Promise<Response> {
+  try {
+    const { query } = (await request.json()) as { query?: string };
+    const q = (query ?? "").trim();
+    if (!q) return fail("Chybí dotaz.", 400);
+    return json({ results: await searchLyrics(q) });
+  } catch (error) {
+    return fail(message(error), 502);
+  }
 }
 
 function message(error: unknown): string {
@@ -318,6 +280,8 @@ const server = Bun.serve({
     "/api/add-song": { POST: (request) => apiAddSong(request) },
     "/api/llm": { POST: (request) => apiLlm(request) },
     "/api/fetch-webpage": { POST: (request) => apiFetchWebpage(request) },
+    "/api/search-web": { POST: (request) => apiSearchWeb(request) },
+    "/api/search-lyrics": { POST: (request) => apiSearchLyrics(request) },
 
     // Client-side routes (SPA): everything else renders the shell.
     "/*": () => html(indexHtml),

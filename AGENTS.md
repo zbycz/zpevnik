@@ -23,6 +23,9 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
 - `lib/github.ts` - GitHub REST (tree, contents read, contents write). `GITHUB_API_URL`
   can override the API base (used for local mocking / GH Enterprise).
 - `lib/markdown.ts` - frontmatter via `Bun.YAML`, rendering via `Bun.markdown`.
+- `lib/web.ts` - web access for the agent. `searchLyrics` (LRCLIB, free, no token),
+  `searchWeb` (Bing/DuckDuckGo HTML, no token), and `fetchWebpage` with a reader-proxy
+  fallback for pages that block datacenter IPs.
 - `public/app.ts` - browser code: router, song view, search autosuggest, and the
   in-browser agent harness for `/add`.
 - Songs live in `pisnicky/` on the default branch. Frontmatter: `title`, `author`, `year`.
@@ -42,6 +45,9 @@ GITHUB_PAT=... bun run scripts/seed-songs.ts   # add demo songs to pisnicky/
   with rolldown, which cannot parse those imports ("HTML imports in `routes` are not
   supported on Vercel"). `public/**` is shipped through `includeFiles` in `vercel.json`
   and read at runtime instead.
-- The agent runs in the browser and orchestrates `/api/llm` + `/api/fetch-webpage`; the
-  final answer must be a JSON object which the UI turns into an editable draft before
-  `POST /api/add-song`.
+- The agent runs in the browser and orchestrates `/api/llm`, `/api/search-lyrics`,
+  `/api/search-web`, and `/api/fetch-webpage`; the final answer must be a JSON object
+  which the UI turns into an editable draft before `POST /api/add-song`.
+- Vercel runs from datacenter IPs, so Google/DDG often CAPTCHA. Do not add scraping of
+  search engines that block datacenter IPs; prefer LRCLIB (lyrics) and Bing (general),
+  and keep the `r.jina.ai` fallback in `fetchWebpage` for blocked pages.

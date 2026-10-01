@@ -269,9 +269,38 @@ document.addEventListener("click", (event) => {
 // Add song - agent harness
 // ---------------------------------------------------------------------------
 
-const MAX_STEPS = 8;
+const MAX_STEPS = 10;
 
 const AGENT_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "search_lyrics",
+      description:
+        "Vyhledá text písně v databázi textů (LRCLIB). Vrací seznam skladeb včetně plného textu. Zkus to jako první.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Název písně, ideálně i s autorem, např. 'Touha Daniel Landa'" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_web",
+      description: "Vyhledá na webu (bez API klíče) a vrátí seznam odkazů s popisky.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Vyhledávací dotaz" },
+        },
+        required: ["query"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -290,9 +319,10 @@ const AGENT_TOOLS = [
 
 const SYSTEM_PROMPT = [
   "Jsi agent, který pomáhá plnit český zpěvník.",
-  "Máš k dispozici jediný nástroj: fetch_webpage(url), který načte obsah stránky.",
-  "Nejprve zkus odhadnout vhodné URL (např. Google vyhledávání, stránky s texty písní,",
-  "Wikipedii, nebo přímo web interpreta) a obsah načti. Můžeš volat nástroj vícekrát.",
+  "Máš tři nástroje: search_lyrics(query) - databáze textů písní (zkus první),",
+  "search_web(query) - obecné vyhledávání na webu, fetch_webpage(url) - načtení stránky.",
+  "Postup: nejdřív search_lyrics s názvem písně a autorem; pokud nenajdeš, použij search_web",
+  "a pak fetch_webpage na vhodný odkaz. Můžeš volat nástroje vícekrát.",
   "Najdi text písně a jejího autora. Pokud text nenajdeš, vrať prázdný markdown a vysvětli proč.",
   "Až budeš hotový, odpověz POUZE jedním JSON objektem bez okolního textu a bez code fence,",
   've tvaru: {"title": "Název písně", "author": "Autor", "year": "rok nebo prázdný řetězec",',
@@ -404,15 +434,16 @@ async function runAgent(query: string, ui: AgentUi): Promise<void> {
       }
 
       for (const call of toolCalls) {
-        const args = safeJson(call.function.arguments);
-        const target = String(args.url ?? "");
-        logLine(ui.log, `🔧 fetch_webpage(${target})`, "log-tool");
+        const name = call.function?.name ?? "";
+        const args = safeJson(call.function?.arguments ?? "{}");
+        const { endpoint, log, body } = toolRequest(name, args);
+        logLine(ui.log, log, "log-tool");
         let toolResult: unknown;
         try {
-          const toolResponse = await fetch("/api/fetch-webpage", {
+          const toolResponse = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: target }),
+            body: JSON.stringify(body),
             signal: ui.controller.signal,
           });
           toolResult = toolResponse.ok
@@ -444,6 +475,27 @@ function safeJson(text: string): Record<string, unknown> {
     return JSON.parse(text) as Record<string, unknown>;
   } catch {
     return {};
+  }
+}
+
+/** Map an agent tool call to its backend endpoint, log line, and request body. */
+function toolRequest(
+  name: string,
+  args: Record<string, unknown>,
+): { endpoint: string; log: string; body: Record<string, unknown> } {
+  switch (name) {
+    case "search_lyrics": {
+      const query = String(args.query ?? "");
+      return { endpoint: "/api/search-lyrics", log: `🔧 search_lyrics(${query})`, body: { query } };
+    }
+    case "search_web": {
+      const query = String(args.query ?? "");
+      return { endpoint: "/api/search-web", log: `🔧 search_web(${query})`, body: { query } };
+    }
+    default: {
+      const url = String(args.url ?? "");
+      return { endpoint: "/api/fetch-webpage", log: `🔧 fetch_webpage(${url})`, body: { url } };
+    }
   }
 }
 
