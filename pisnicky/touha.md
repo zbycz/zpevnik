@@ -3,9 +3,6 @@ title: "Touha"
 author: "Daniel Landa"
 year: "2003"
 ---
-# Touha
-
-**Daniel Landa** *(album: Kvaska)*
 
 Je to jak nic
 to totiž neváží víc
