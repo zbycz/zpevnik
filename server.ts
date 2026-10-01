@@ -18,19 +18,12 @@ const OPENROUTER_KEY =
   process.env.OPENROUTER_API_KEY ?? process.env.OPENROUTER_KEY ?? "";
 
 const TEXT = { "Content-Type": "text/plain; charset=utf-8" };
-const MARKER = { "x-zpevnik": "function" };
-const html = (body: string) =>
-  new Response(body, {
-    headers: { "Content-Type": "text/html; charset=utf-8", ...MARKER },
-  });
+const html = (body: string, status = 200) =>
+  new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });
 const css = (body: string) =>
-  new Response(body, {
-    headers: { "Content-Type": "text/css; charset=utf-8", ...MARKER },
-  });
+  new Response(body, { headers: { "Content-Type": "text/css; charset=utf-8" } });
 const js = (body: string) =>
-  new Response(body, {
-    headers: { "Content-Type": "text/javascript; charset=utf-8", ...MARKER },
-  });
+  new Response(body, { headers: { "Content-Type": "text/javascript; charset=utf-8" } });
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const fail = (message: string, status = 500) => json({ error: message }, status);
 
@@ -223,12 +216,17 @@ function message(error: unknown): string {
 
 const server = Bun.serve({
   routes: {
-    // On Vercel the CDN serves the generated `public/**` files first, so these
-    // content routes only run locally (before/without a build) and as a shell
-    // for pages that are not deployed yet.
+    // Pages and assets are pre-rendered into `public/` by `bun run build` and
+    // bundled into the function via `includeFiles`, so these routes serve the
+    // built files directly. Without a build they fall back to rendering.
     "/": () => html(builtFile("index.html") ?? renderHomeHtml(listSongs())),
     "/add": () => html(renderShellHtml()),
-    "/song/:name": () => html(renderShellHtml()),
+    // Songs are pre-rendered to static HTML at build time; the server only
+    // serves the built page, or a shell for a song that is not deployed yet.
+    "/song/:name": ({ params }) => {
+      const built = builtFile(`song/${params.name}.html`);
+      return built ? html(built) : html(renderShellHtml());
+    },
     "/styles.css": () => css(builtFile("styles.css") ?? stylesCss()),
     "/app.js": () => js(builtFile("app.js") ?? clientJs()),
     "/songs.json": () => new Response(builtFile("songs.json") ?? JSON.stringify({ songs: listSongs() }), {
@@ -246,10 +244,10 @@ const server = Bun.serve({
 
     // Unknown paths: nothing static and no API - a plain 404, no shell.
     "/*": () =>
-      new Response("<!doctype html><meta charset=utf-8><title>404</title><h1>404 – stránka nenalezena</h1><p><a href=\"/\">Zpět na zpěvník</a></p>", {
-        status: 404,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      }),
+      html(
+        '<!doctype html><meta charset=utf-8><title>404</title><h1>404 – stránka nenalezena</h1><p><a href="/">Zpět na zpěvník</a></p>',
+        404,
+      ),
   },
   fetch() {
     return new Response("Not found", { status: 404, headers: TEXT });
