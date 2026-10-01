@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "bunVersion": "1.4.x",
-  "buildCommand": "bun run build"
+  "cleanUrls": true,
+  "buildCommand": "bun run build",
+  "functions": {
+    "server.ts": {
+      "includeFiles": "{public,pisnicky}/**"
+    }
+  }
 }
