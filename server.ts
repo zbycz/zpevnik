@@ -13,7 +13,7 @@ import { getLocalSong, listSongs, titleFromName } from "./lib/songs";
 import { fetchWebpage, searchLyrics, searchWeb } from "./lib/web";
 
 const OPENROUTER_URL = process.env.OPENROUTER_URL ?? "https://openrouter.ai/api/v1";
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2.6-pro";
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL ?? "deepseek/deepseek-v4.1-flash";
 const OPENROUTER_KEY =
   process.env.OPENROUTER_API_KEY ?? process.env.OPENROUTER_KEY ?? "";
 

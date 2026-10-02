@@ -54,7 +54,7 @@ zobrazení. `cleanUrls` dělá hezké adresy bez `.html`.
 | `GITHUB_OWNER` | (volitelné) výchozí `zbycz` |
 | `GITHUB_REPO` | (volitelné) výchozí `zpevnik` |
 | `GITHUB_SONGS_DIR` | (volitelné) výchozí `pisnicky` |
-| `OPENROUTER_MODEL` | (volitelné) výchozí `xiaomi/mimo-v2.6-pro` |
+| `OPENROUTER_MODEL` | (volitelné) výchozí `deepseek/deepseek-v4.1-flash` |
 | `OPENROUTER_URL` | (volitelné) výchozí `https://openrouter.ai/api/v1` |
 
 ## Lokální vývoj
