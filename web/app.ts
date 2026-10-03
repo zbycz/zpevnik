@@ -584,14 +584,9 @@ function showDraftForm(draft: SongDraft, container: HTMLElement): void {
       if (!response.ok) throw new Error(await readError(response));
       const data = (await response.json()) as { name: string; title: string };
       songsCache = null;
-      const path = songHref(data.name);
-      container.replaceChildren(
-        h("div", { class: "card ok" },
-          h("strong", { text: "Píseň přidána. " }),
-          h("a", { href: path }, "Zobrazit píseň →"),
-          h("p", { class: "muted", text: "Zobrazí se hned (živě z API), na statickou stránku se dostane po dalším nasazení." }),
-        ),
-      );
+      info.textContent = "Hotovo, otevírám píseň…";
+      // The song page is not built yet, so it renders live from the API.
+      location.href = songHref(data.name);
     } catch (error) {
       submit.disabled = false;
       info.textContent = "";
