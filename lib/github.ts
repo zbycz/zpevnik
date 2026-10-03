@@ -6,6 +6,14 @@ export const REPO = process.env.GITHUB_REPO ?? "zpevnik";
 /** Directory (in the repo) that contains the songs. */
 export const SONGS_DIR = process.env.GITHUB_SONGS_DIR ?? "pisnicky";
 
+/** GitHub web URL that opens a song's markdown file in the edit UI. */
+export function githubEditUrl(path: string): string {
+  return `https://github.com/${OWNER}/${REPO}/edit/main/${path
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
+}
+
 function firstToken(names: string[]): string {
   for (const name of names) {
     const value = process.env[name];

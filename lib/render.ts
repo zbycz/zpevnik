@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { SONGS_DIR, githubEditUrl } from "./github";
 import type { Song, SongListItem } from "./types";
 
 /**
@@ -102,10 +103,12 @@ export function renderSongHtml(song: Song, sameAuthor: SongListItem[]): string {
     ? `<h2>Další písně od ${escapeHtml(song.meta.author)}</h2><ul class="song-list">${songListHtml(sameAuthor)}</ul>`
     : "";
   const data = JSON.stringify({ song, sameAuthor }).replace(/</g, "\\u003c");
+  const editUrl = githubEditUrl(`${SONGS_DIR}/${song.name}`);
   const body = `
         <a class="back" href="/">← Domů</a>
         <h1>${escapeHtml(song.meta.title)}</h1>
         <p class="song-meta">${meta}</p>
+        <p class="song-actions"><a class="edit-link" href="${editUrl}" target="_blank" rel="noopener">✏️ Upravit na GitHubu</a></p>
         <article class="song-body">${song.html}</article>
         ${same}
         <script type="application/json" id="song-data">${data}</script>

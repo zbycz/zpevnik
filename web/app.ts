@@ -128,6 +128,8 @@ async function getSongs(force = false): Promise<SongListItem[]> {
 interface SongData {
   song: Song;
   sameAuthor: SongListItem[];
+  /** GitHub edit URL, present on the API fallback response. */
+  editUrl?: string;
 }
 
 /** Read the data embedded in a static song page, if present. */
@@ -203,15 +205,19 @@ function renderSong(url: URL): void {
   if (name && !/\.(md|markdown)$/i.test(name)) name += ".md";
   app.replaceChildren(h("p", { class: "muted", text: "Načítám píseň…" }));
   getSongFromApi(name)
-    .then(({ song, sameAuthor }) => {
+    .then(({ song, sameAuthor, editUrl }) => {
       const metaParts = [song.meta.author, song.meta.year].filter(Boolean).map(escapeHtml);
       const sameHtml = sameAuthor.length
         ? `<h2>Další písně od ${escapeHtml(song.meta.author)}</h2><ul class="song-list">${songListHtml(sameAuthor)}</ul>`
+        : "";
+      const editHtml = editUrl
+        ? `<p class="song-actions"><a class="edit-link" href="${editUrl}" target="_blank" rel="noopener">✏️ Upravit na GitHubu</a></p>`
         : "";
       app.innerHTML = `
         <a class="back" href="/">← Domů</a>
         <h1>${escapeHtml(song.meta.title)}</h1>
         <p class="song-meta">${metaParts.join(" · ")}</p>
+        ${editHtml}
         <article class="song-body">${song.html}</article>
         ${sameHtml}
       `;

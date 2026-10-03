@@ -157,6 +157,22 @@ h2 {
   margin-top: -0.5rem;
 }
 
+.song-actions {
+  margin-top: -0.25rem;
+}
+
+.edit-link {
+  display: inline-block;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.edit-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .song-body {
   background: var(--card);
   border: 1px solid var(--border);

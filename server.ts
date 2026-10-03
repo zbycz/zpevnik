@@ -7,7 +7,7 @@ import {
   renderShellHtml,
   stylesCss,
 } from "./lib/render";
-import { SONGS_DIR, createFile, getFile } from "./lib/github";
+import { SONGS_DIR, createFile, getFile, githubEditUrl } from "./lib/github";
 import { parseFrontmatter, renderMarkdown } from "./lib/markdown";
 import { getLocalSong, listSongs, titleFromName } from "./lib/songs";
 import { fetchWebpage, searchLyrics, searchWeb } from "./lib/web";
@@ -69,7 +69,11 @@ async function apiGetSong(request: Request): Promise<Response> {
     const sameAuthor = song.meta.author
       ? listSongs().filter((s) => s.author === song.meta.author && s.name !== name)
       : [];
-    return json({ song, sameAuthor });
+    return json({
+      song,
+      sameAuthor,
+      editUrl: githubEditUrl(`${SONGS_DIR}/${name}`),
+    });
   } catch (error) {
     return fail(message(error), 404);
   }
