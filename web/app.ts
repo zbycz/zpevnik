@@ -217,9 +217,9 @@ function renderSong(url: URL): void {
         <a class="back" href="/">← Domů</a>
         <h1>${escapeHtml(song.meta.title)}</h1>
         <p class="song-meta">${metaParts.join(" · ")}</p>
-        ${editHtml}
         <article class="song-body">${song.html}</article>
         ${sameHtml}
+        ${editHtml}
       `;
     })
     .catch((error) => showError(app, error, () => renderSong(url)));

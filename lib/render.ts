@@ -108,9 +108,9 @@ export function renderSongHtml(song: Song, sameAuthor: SongListItem[]): string {
         <a class="back" href="/">← Domů</a>
         <h1>${escapeHtml(song.meta.title)}</h1>
         <p class="song-meta">${meta}</p>
-        <p class="song-actions"><a class="edit-link" href="${editUrl}" target="_blank" rel="noopener">✏️ Upravit na GitHubu</a></p>
         <article class="song-body">${song.html}</article>
         ${same}
+        <p class="song-actions"><a class="edit-link" href="${editUrl}" target="_blank" rel="noopener">✏️ Upravit na GitHubu</a></p>
         <script type="application/json" id="song-data">${data}</script>
       `;
   return layout(`${song.meta.title} – Zpěvník`, body);
