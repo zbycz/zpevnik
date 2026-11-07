@@ -43,3 +43,21 @@ Last thing I remember, I was running for the door
 I had to find the passage back to the place I was before
 "Relax," said the night man, "We are programmed to receive
 You can check out any time you like, but you can never leave"
+
+
+
+
+
+
+
+
+| Původní A harm moll | Amoll = Cdur |
+|---|---|
+| Am | Am |
+| E7 | E |
+| G | Dm |
+| D | F |
+| F | Dm |
+| C | Am |
+| Dm | G |
+| E7 | E7 |
