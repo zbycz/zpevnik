@@ -51,10 +51,10 @@ You can check out any time you like, but you can never leave"
 
 
 
-| Původní A harm moll | Amoll = Cdur |
+| A moll (harmonická) | A moll |
 |---|---|
 | Am | Am |
-| E7 | E |
+| E7 | E7 |
 | G | Dm |
 | D | F |
 | F | Dm |
